@@ -1,0 +1,143 @@
+---
+title: "HUDM5123_Lab02_Diagnostics"
+author: "Zhuqian Karen Zhou"
+date: "February 13, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Task 1: Fit the model
+
+The linear model looks like this: HS.Grad[i] = b0 + b1·Illiteracy[i] + b2·Income[i] + b3·Area[i] + error[i]   
+
+```{r echo=FALSE}
+dat <- data.frame(state.x77)
+lm2 <- lm(HS.Grad ~ Illiteracy + Income + Area, data = dat)
+summary(lm2)
+```
+
+The prediction equation with estimated coefficients is as follows:
+HS.Grad[i] = 43.846 + (-7.396)·Illiteracy[i] + 0.004·Income[i] + 0.000026·Area[i] + error[i]
+
+The R-squared of the estimated model is 0.6298, which means that the three predictors, illiteracy rate, income, and state area, accounts for around 62.98% of variance in high school graduation rate.
+
+The residual standard error, 5.972, shows the average amount that high school graduation rate in the dataset deviates from the regression line. Its degree of freedom, 46, means there are 46 pieces of independent information among the total 50 data points (i.e. states) going into the estimation of the four parameters, i.e. b0, b1, b2, and b3, in the current model.
+
+# Task 2: Draw plots
+
+```{r echo=FALSE}
+# Univariate plots: histograms
+hist(dat$HS.Grad, breaks=15, xlab="percent high-school graduates (1970)", main="High School Graduation Rate") # dependent variables
+hist(dat$Illiteracy, breaks=15, xlab="illiteracy (1970, percent of population)", main="Illiteracy Rate")
+hist(dat$Income, breaks=15, xlab="per capita income (1974)", main="Income")
+hist(dat$Area, breaks=15, xlab="land area in square miles", main="State Area")
+```
+
+The histograms show us that the distrubution of the four variables. The central tendencies of high school graduation rate and of income per capita are high since their modes are around medians while illiteracy rate and state area are less so because their modes are aroud their minimal values.
+
+
+```{r echo=FALSE}
+# A bivariate scatterplot
+plot(dat[,c(2,3,6,8)])
+```
+
+The bivariate scatterplot shows us a roughly *positive* linear relationship between high school graduation rate and income percapita, a roughly *negative* linear relationship between high school graduation rate, and a almost random relationship between high school graduation rate and state area.
+
+```{r echo=FALSE}
+# Correlation Matix
+c2 <- round(cor(dat[,c(2,3,6,8)]), digits = 2)
+c2
+
+# Correlation plot
+library(corrplot)
+corrplot(corr=c2, method="circle", order="hclust")
+```
+
+The correlation matrix and the correlation plot help us quantify the linear relationships shown in the scatterplot. The postive relationship between high school graduation rate and income per capita and the negative relationship between high school graduation rate and illiteracy rate are highly linear with both correlation coefficients greater than 0.6 while the relationship between high school graduation rate and state area is less linear with the correlation coefficient around 0,33.
+
+# Task 3: Draw a influence plot
+```{r echo=FALSE}
+library(car)
+influencePlot(lm2, xlab="Hat-Values", ylab="Studendized Residuals", main="Influence Plot")
+```
+
+Leverage is messuared by hat-values (i.e. x-axis on the plot). Discrepancy is mesared by studentdized residuals (i.e. y-axis on the plot). And the influence of a data point is visualized as the size of the circle in the plot. Therefore, we can tell that State Alaska has the highest leverage and is most influential while Sate Hawaii has the most discrepancy.
+
+Although we need to be cautious everytime we throw out an outlier, I do think the most influential point, State Alaska, can be excluded in this case since it is the largest state of the US but with the third fewest polution and is far from the US main land. Its geographical and historical specialities make it very likely to be an outlier.
+
+# Task 4: Draw a QQ plot for checking the normality of error term
+```{r echo=FALSE}
+qqPlot(lm2)
+```
+The plot shows evidence of normality since almost all points fall within the 95% confidence bands, which means our sample does not differ much from the theoretical expectation that the error term of the model is normally distributed.
+
+# Task 5: Draw the residual plot for checking constant error variance
+```{r echo=FALSE}
+residualPlot(lm2, type="rstudent")
+```
+If the error variance is not constant, we will expect to see the distrubution of the data point with a trumpt-like shape, i.e. they center around the line of zero studendentized residual when the predicted values are small but tend to spread around the line to a greater extent when the predicted values go up.
+
+Since we do not see such a shape on the residual plot we just drew, there is no evidence for non-constant error variance.
+
+# Task 6: Draw CR-plots for checking linearity
+```{r echo=FALSE}
+crPlot(lm2, variable = "Income")
+crPlot(lm2, variable = "Illiteracy")
+crPlot(lm2, variable = "Area")
+```
+According to John Fox, the component-plus residual (CR) plot, also called the partial-residual plot, depict the relationship between the partial residual (i.e. E[i,j] + E[i]+B[j]·x[i,j]) and the predictor (i.e. X[i,j]). Comparing the lowess smooth line (i.e the solid line) and the line for the linear least-squares fit (i.e. the dash line), we can not only check the linearity between variables but also distinguish between monotone and non-monotone nonlinearity when nonlinearity is present.
+
+Looking at the three CR-plots above, it is obvious that all three predicors, income, illiteracy, and area, have somehow nonlinear relationships with the prediction, high school graduation rate. The difference among them is that the nonlinearity of income and illiteracy are monotone while the nonlinearity of state area is non-monotone, which mainly results from the suspected outliner, Alaska.
+
+# Task 7: Calculate VIF for detecting multicollinearity
+```{r echo=FALSE}
+vif(lm2)
+```
+
+As the variance inflation factor shows, all three predictors in the model have VIF less than 4, which means multicolinearity is not a big concern in the current model. Among them, the variable, income, has the largest VIF. Let's take it as an example to demonstrate how VIF is calculated.
+
+First, fit the linear model by modeling "Income" on other two predictors, "Illiteracy" and "Area".
+```{r echo=FALSE}
+lm_income <- lm(Income ~ Illiteracy + Area, data = dat)
+summary(lm_income)
+```
+
+After getting the multiple r-squared of this model, 0.3497, calculte VIF using the forumla, VIF=1/(1-multiple r-squred).
+
+```{r echo=FALSE}
+1/(1-0.3497)
+```
+The result of such calculation, 1.537752, is almost the same as the one computed by the VIF function, 1.537651.
+
+# Task 8: Fit a model with a categorical predictor
+```{r echo=FALSE}
+dat <- cbind(dat, state.region)
+lm3 <- lm(HS.Grad ~ state.region, data = dat)
+summary(lm3)
+```
+
+Coeffcients in this model mean that
+1) states in the northeast region have average high school graduation rate at 53.967%;
+2) state in the south region have average high school graduation rate at 44.344%(=53.967%-9.623%);
+3) state in the north central region have average high school graduation rate at 54.517%(=53.967%+0.550%);
+4) state in the west region have average high school graduation rate at 62.000%(=53.967%+8.033%).
+
+# Task 9: Check the constant variance assumption by running Levene's test and the normality assumption by drawing a QQ plot
+
+We need to check the constant variance assumption and the normality assumption but not the linearity assumption because the last one is trivially maintained when the predictor is a categorical variable.
+```{r echo=FALSE}
+leveneTest(lm3)
+boxplot(HS.Grad ~ state.region,
+data = dat,
+xlab = "State Region",
+ylab = "Outcome of Levene's Test")
+```
+The output from Levene's test suggests that the constant variance assumption is NOT tenable here (p=0.4164). The boxplot above shows the unequal variance clearly.
+
+```{r echo=FALSE}
+qqPlot(lm3, xlab = "t Quantiles", ylab = "Studentized Residuals")
+```
+The plot shows evidence of normality since almost all points fall within the 95% confidence bands, which means our sample does not differ much from the theoretical expectation that the error term of the model is normally distributed.
